@@ -29,6 +29,8 @@ add_executable(EnvStat-Qt
 	src/main.cpp
 	src/device/SerialWorker.cpp
 	src/ui/MainWindow.cpp
+	src/ui/ChartWidget.cpp
+	src/ui/resources.qrc
 )
 
 target_link_libraries(EnvStat-Qt PRIVATE

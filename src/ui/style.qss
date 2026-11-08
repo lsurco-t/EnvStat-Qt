@@ -1,0 +1,39 @@
+QFrame#card {
+	background: palette(base);
+	border: 1px solid palette(mid);
+	border-radius: 10px;
+}
+QFrame#card[alert="true"] {
+	border: 2px solid #d9482b;
+}
+QLabel#cardTitle {
+	color: palette(placeholder-text);
+	font-size: 13px;
+	font-weight: 600;
+}
+QLabel#cardValue {
+	font-size: 40px;
+	font-weight: 600;
+}
+QFrame#card[alert="true"] QLabel#cardValue {
+	color: #d9482b;
+}
+QLabel#cardSubtitle {
+	color: palette(placeholder-text);
+	font-size: 12px;
+}
+QFrame#card[alert="true"] QLabel#cardSubtitle {
+	color: #d9482b;
+	font-weight: 600;
+}
+QLabel#freshness[state="ok"] { color: #1e8e3e; font-weight: 600; }
+QLabel#freshness[state="overdue"] { color: #e37400; font-weight: 600; }
+QLabel#freshness[state="stale"] { color: #d9482b; font-weight: 600; }
+QLabel#freshness[state="idle"] { color: palette(placeholder-text); }
+QPlainTextEdit#console {
+	font-family: monospace;
+	background: palette(base);
+	border: 1px solid palette(mid);
+	border-radius: 6px;
+}
+QToolBar { spacing: 6px; padding: 4px; }

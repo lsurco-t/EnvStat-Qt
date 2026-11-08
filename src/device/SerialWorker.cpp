@@ -1,31 +1,74 @@
 #include "SerialWorker.h"
 #include "TelemetryParser.h"
+#include <QDateTime>
 #include <QHash>
 #include <optional>
 
 SerialWorker::SerialWorker(QObject *parent) : QObject(parent){
-	SerialPort_ = new QSerialPort(this);
+	serialport_ = new QSerialPort(this);
 
-	SerialPort_->setPortName("/dev/ttyUSB0");
-	SerialPort_->setBaudRate(QSerialPort::Baud115200);
-
-	connect(SerialPort_, &QSerialPort::readyRead, this, &SerialWorker::readSerialData);
+	connect(serialport_, &QSerialPort::readyRead, this, &SerialWorker::readSerialData);
+	connect(serialport_, &QSerialPort::errorOccurred, this, &SerialWorker::handleError);
 }
 
-void SerialWorker::startListening(){
-	if (SerialPort_->open(QIODevice::ReadOnly)){
+void SerialWorker::connectToPort(const QString &portName, qint32 baudRate){
+	if (serialport_->isOpen()){
+		disconnectPort();
+	}
+
+	buffer_.clear();
+	serialport_->setPortName(portName);
+	serialport_->setBaudRate(baudRate);
+
+	if (serialport_->open(QIODevice::ReadOnly)){
 		emit statusMessage(
-			QStringLiteral("Connected to ESP32 Successfully")
+			QStringLiteral("Connected to %1 at %2 baud").arg(portName).arg(baudRate)
 		);
+		emit connectionChanged(true, portName);
 	} else {
 		emit statusMessage(
-			QStringLiteral("Failed to connect to ESP32: %1").arg(SerialPort_->errorString())
+			QStringLiteral("Failed to connect to %1: %2")
+				.arg(portName, serialport_->errorString())
 		);
+		emit connectionChanged(false, portName);
+	}
+}
+
+void SerialWorker::disconnectPort(){
+	if (!serialport_->isOpen()){
+		return;
+	}
+
+	const QString portName = serialport_->portName();
+	serialport_->close();
+	buffer_.clear();
+
+	emit statusMessage(QStringLiteral("Disconnected from %1").arg(portName));
+	emit connectionChanged(false, portName);
+}
+
+void SerialWorker::handleError(QSerialPort::SerialPortError error){
+	if (error == QSerialPort::NoError || !serialport_->isOpen()){
+		return;
+	}
+
+	emit statusMessage(
+		QStringLiteral("Serial port error: %1").arg(serialport_->errorString())
+	);
+
+	// A removed device cannot recover on its own; close so the UI can reconnect.
+	if (error == QSerialPort::ResourceError ||
+		error == QSerialPort::DeviceNotFoundError ||
+		error == QSerialPort::PermissionError){
+		const QString portName = serialport_->portName();
+		serialport_->close();
+		buffer_.clear();
+		emit connectionChanged(false, portName);
 	}
 }
 
 void SerialWorker::readSerialData(){
-	buffer_ += SerialPort_->readAll();
+	buffer_ += serialport_->readAll();
 
 	while(buffer_.contains('\n')){
 		const int endIndex = buffer_.indexOf('\n');
@@ -92,7 +135,11 @@ void SerialWorker::processLine(const QString &line){
 	const auto telemetry = TelemetryParser::parser(line);
 
 	if (telemetry){
-		emit newDataParsed(telemetry->temperature, telemetry->humidity);
+		emit newMeasurement(Measurement{
+			QDateTime::currentDateTime(),
+			telemetry->temperature,
+			telemetry->humidity
+		});
 		return;
 	}
 
